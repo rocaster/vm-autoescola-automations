@@ -1,0 +1,209 @@
+{
+  "name": "VM Autoescola - Practical lesson reminder (day before)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "59453802-06fb-4e06-9608-52c5c78913c9",
+      "name": "inicio_aulas_praticas"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  name,\n  phone,\n  x_sexo,\n  TO_CHAR(x_inicio_aulas_praticas AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza', 'HH24:MI') AS hora_formatada\nFROM\n  crm_lead\nWHERE\n  x_inicio_aulas_praticas IS NOT NULL\n  AND DATE(x_inicio_aulas_praticas AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza') = DATE(NOW() AT TIME ZONE 'America/Fortaleza' + INTERVAL '1 day');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        192,
+        0
+      ],
+      "id": "cd65801f-b699-4610-b59a-6576eb122e0e",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "M",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c4cfa34c-162d-4cf3-8a62-3b9f60f34d81"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "a1673a83-08dd-4206-9980-d17ac65e03c9",
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "=F",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        400,
+        0
+      ],
+      "id": "bf82f163-c3bb-4c4b-b9c3-e9ff68e9426d",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que a senhora tem a sua aula prática agendada para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        624,
+        96
+      ],
+      "id": "a1e7f023-21a0-4e66-b867-e266d9dc1ac7",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que o senhor tem a sua aula prática agendada para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "ccd321e9-229d-45d6-bc74-28fe09dffa8a",
+      "name": "HTTP Request"
+    }
+  ],
+  "connections": {
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "inicio_aulas_praticas": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

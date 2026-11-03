@@ -1,0 +1,209 @@
+{
+  "name": "VM Autoescola - Medical exam reminder (day before)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        16,
+        432
+      ],
+      "id": "0c0e70a7-e04c-4e73-9764-5f1a2a1a0dd4",
+      "name": "exame_medico"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  name,\n  phone,\n  x_sexo,\n  TO_CHAR(x_exame_medico AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza', 'HH24:MI') AS hora_formatada\nFROM\n  crm_lead\nWHERE\n  x_exame_medico IS NOT NULL\n  AND DATE(x_exame_medico AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza') = DATE(NOW() AT TIME ZONE 'America/Fortaleza' + INTERVAL '1 day');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        208,
+        432
+      ],
+      "id": "3cabcd3c-0da2-45c1-9ef9-8eff374b1fe6",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "M",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c4cfa34c-162d-4cf3-8a62-3b9f60f34d81"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "a1673a83-08dd-4206-9980-d17ac65e03c9",
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "=F",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        416,
+        432
+      ],
+      "id": "c3f53825-b417-4ee2-b1cf-ebcbc1e41d40",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que a senhora tem o seu exame médico agendado para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça de levar um documento de identificação original com foto. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        528
+      ],
+      "id": "97595fe7-cc4a-41f6-ad9a-cffd2bcdd6d0",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que o senhor tem o seu exame médico agendado para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça de levar um documento de identificação original com foto. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        336
+      ],
+      "id": "be49db77-8979-4436-b739-b2ebe366879b",
+      "name": "HTTP Request2"
+    }
+  ],
+  "connections": {
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exame_medico": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

@@ -1,0 +1,209 @@
+{
+  "name": "VM Autoescola - Psychological exam reminder (day before)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        32,
+        848
+      ],
+      "id": "72b7a5de-498e-4a69-8837-f7407136a49f",
+      "name": "exame_psicotecnico"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  name,\n  phone,\n  x_sexo,\n  TO_CHAR(x_exame_psicotecnico AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza', 'HH24:MI') AS hora_formatada\nFROM\n  crm_lead\nWHERE\n  x_exame_psicotecnico IS NOT NULL\n  AND DATE(x_exame_psicotecnico AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza') = DATE(NOW() AT TIME ZONE 'America/Fortaleza' + INTERVAL '1 day');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        848
+      ],
+      "id": "d36c5324-f104-4883-bf1d-8ac39c76c6fe",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "M",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c4cfa34c-162d-4cf3-8a62-3b9f60f34d81"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "a1673a83-08dd-4206-9980-d17ac65e03c9",
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "=F",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        432,
+        848
+      ],
+      "id": "66298df3-69ee-45bc-a26a-63337f727526",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que a senhora tem o seu exame psicotécnico agendado para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça de levar um documento de identificação original com foto. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        656,
+        944
+      ],
+      "id": "98192cec-e7f0-4cf0-8d57-72c89f9e0d28",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que o senhor tem o seu exame psicotécnico agendado para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça de levar um documento de identificação original com foto. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        656,
+        752
+      ],
+      "id": "62b99a27-9bea-420c-ae55-d0e6c803842b",
+      "name": "HTTP Request4"
+    }
+  ],
+  "connections": {
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exame_psicotecnico": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

@@ -1,0 +1,209 @@
+{
+  "name": "VM Autoescola - Detran theory exam reminder (day before)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        48,
+        1264
+      ],
+      "id": "9af254e2-4ba6-4915-8001-da5db9a9d34f",
+      "name": "exame_teorico"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  name,\n  phone,\n  x_sexo,\n  TO_CHAR(x_exame_teorico AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza', 'HH24:MI') AS hora_formatada\nFROM\n  crm_lead\nWHERE\n  x_exame_teorico IS NOT NULL\n  AND DATE(x_exame_teorico AT TIME ZONE 'UTC' AT TIME ZONE 'America/Fortaleza') = DATE(NOW() AT TIME ZONE 'America/Fortaleza' + INTERVAL '1 day');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        240,
+        1264
+      ],
+      "id": "460e228a-a880-4db0-8a27-477ea86aa0db",
+      "name": "Execute a SQL query3",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "M",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c4cfa34c-162d-4cf3-8a62-3b9f60f34d81"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "a1673a83-08dd-4206-9980-d17ac65e03c9",
+                    "leftValue": "={{ $json.x_sexo }}",
+                    "rightValue": "=F",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        1264
+      ],
+      "id": "b73b0fad-693a-47ae-98ae-b3c4c4d00151",
+      "name": "Switch3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que a senhora tem o seu exame teórico agendado para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça de levar um documento de identificação original com foto. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        1360
+      ],
+      "id": "a581c83c-0f91-431a-ad04-46a635abffc6",
+      "name": "HTTP Request7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/vmautoescola",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone.replace(/[^0-9]/g, '') }}\",\n  \"text\": \"Olá {{ $json.name.split(' ')[0] }}, tudo bem? Passando para lembrar que o senhor tem o seu exame teórico agendado para amanhã às {{ $json.hora_formatada }}. Por favor, não se esqueça de levar um documento de identificação original com foto. Um abraço da equipe VM Autoescola!\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        1168
+      ],
+      "id": "520606ea-f36c-48f2-9173-76d330178d50",
+      "name": "HTTP Request6"
+    }
+  ],
+  "connections": {
+    "Execute a SQL query3": {
+      "main": [
+        [
+          {
+            "node": "Switch3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exame_teorico": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}
