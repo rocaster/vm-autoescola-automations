@@ -1,6 +1,7 @@
 # vm-autoescola-automations
 Complete automation stack for driving schools, featuring n8n workflows, Odoo 17 CRM integration, Evolution API WhatsApp notifications, and automated daily Docker infrastructure backups to Google Drive.
 
+---
 
 # 🚀 VM Autoescola - Automations & Infrastructure
 
@@ -15,7 +16,7 @@ Centralized repository containing documentation, n8n workflows, database scripts
 - **Implementation:** Custom SQL query utilizing subqueries and null handling in PostgreSQL to join the `crm_lead` and `crm_stage` tables.
 
 ### 2. WhatsApp Automations via Evolution API (n8n)
-- **Holiday Notifications:** 
+- **Holiday Notifications:**  
   * Integrated with **Google Calendar** to detect scheduled holidays.
   * Uses a `Switch` node to route messages based on the student's gender (`M` / Female / Neutral).
   * Phone number sanitization with special character removal (`replace(/\D/g, '')`) and dynamic extraction of the first name (`split(' ')[0]`) to personalize communication.
@@ -32,9 +33,29 @@ Centralized repository containing documentation, n8n workflows, database scripts
 
 ---
 
-## 🛠️ Tech Stack
-- **Orchestration & Automation:** n8n (Self-hosted)
-- **ERP & CRM:** Odoo 17
-- **Communication:** Evolution API (WhatsApp)
-- **Cloud Synchronization:** Rclone + Google Drive
-- **Database:** PostgreSQL 15
+## 🛠️ Tools & Technical Setup
+
+### 1. n8n (Self-Hosted Workflow Automation)
+- **Role:** Orchestrates webhook triggers, cron schedules, and data processing.
+- **Configuration:**
+  - Running in Docker via container `n8n`.
+  - Authenticated via n8n REST API Keys for automated internal maintenance and reporting workflows.
+  - Environment variables configured for timezone (`America/Fortaleza`) and secure webhook URLs.
+
+### 2. Odoo 17 ERP & PostgreSQL 15
+- **Role:** Core CRM and database backend (`vm-autoescola-db-1` & `vm-autoescola-web-1`).
+- **Configuration:**
+  - Custom PostgreSQL queries leveraging `crm_lead` and `crm_stage` tables to filter active leads (`Concluído / CNH Emitida` exclusion).
+  - Automated daily database dumps via `pg_dumpall` inside the container lifecycle.
+
+### 3. Evolution API (WhatsApp Gateway)
+- **Role:** Multi-device WhatsApp instance manager for automated outbound notifications.
+- **Configuration:**
+  - Containerized deployment communicating with n8n HTTP Request nodes.
+  - Payload structure utilizing regex sanitization (`replace(/\D/g, '')`) for phone numbers and dynamic first-name extraction.
+
+### 4. Rclone & Google Drive Backup Strategy
+- **Role:** Cloud disaster recovery and automated storage synchronization.
+- **Configuration:**
+  - Configured via `rclone config` using the Google Drive remote (`gdrive:`).
+  - Automated cron job executed daily at 19:00 (`0 19 * * * /bin/bash /opt/backup.sh`) combining database dumps and Docker directory archives (`/home/suporte/vm-autoescola`).
