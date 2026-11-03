@@ -24,6 +24,7 @@ graph TD
         D[Redis] --> E[Evolution API]
     end
 
+    K[Schedule Triggers] -->|Daily reminders| C
     F[Google Calendar] -->|Holiday Triggers| C
     C -->|Sanitized JSON Payload| E
     E -->|Automated WhatsApp| G((Students))
@@ -45,12 +46,19 @@ graph TD
 - **Implementation:** Custom SQL query utilizing subqueries and null handling in PostgreSQL to join the `crm_lead` and `crm_stage` tables.
 
 ### 2. WhatsApp Automations via Evolution API (n8n)
-- **Holiday Notifications:**  
-  - Integrated with **Google Calendar** to detect scheduled holidays.
-  - Uses a `Switch` node to route messages based on the student's gender (`M` / Female / Neutral).
-  - Phone number sanitization with special character removal (`replace(/\D/g, '')`) and dynamic extraction of the first name (`split(' ')[0]`) to personalize communication.
-- **Completion Congratulations:**
-  - Automated daily workflow that checks for students moved to the completion stage on the previous day and dispatches a personalized congratulatory message for their driver's license (CNH) issuance.
+Nine scheduled n8n workflows query Odoo directly in PostgreSQL and send personalized WhatsApp messages through Evolution API. Every workflow uses a `Switch` node on the custom field `x_sexo` (`M` / `F`) to adapt the wording (o senhor / a senhora), sanitizes phone numbers (`replace(/\D/g, '')`) and greets the student by first name (`split(' ')[0]`).
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `practical_lesson_reminder.json` | Daily, 13:00 | Reminds students of a practical driving lesson scheduled for tomorrow (`x_inicio_aulas_praticas`) |
+| `medical_exam_reminder.json` | Daily, 13:00 | Reminds students of tomorrow's medical exam (`x_exame_medico`) |
+| `psych_exam_reminder.json` | Daily, 13:00 | Reminds students of tomorrow's psychological exam (`x_exame_psicotecnico`) |
+| `theory_exam_reminder.json` | Daily, 13:00 | Reminds students of tomorrow's Detran theory exam (`x_exame_teorico`) |
+| `driving_test_reminder.json` | Daily, 13:00 | Reminds students of tomorrow's Detran driving test (`x_exame_pratico`) |
+| `unexcused_absences_alert.json` | Daily, 08:00 | Politely asks students flagged with 3 unexcused absences to cancel in advance |
+| `welcome_new_student.json` | Daily, 08:00 | Welcomes students enrolled the previous day |
+| `holiday_notifications.json` | Sun–Thu, 17:00 | Reads **Google Calendar** and, if tomorrow is a holiday, notifies all active students that the school will be closed |
+| `cnh_congratulations.json` | Daily, 10:00 | Congratulates students moved to `Concluído / CNH Emitida` the previous day |
 
 ### 3. Backup & Security Infrastructure (Docker & Rclone)
 - **Architecture:** Linux Docker server hosting **Odoo 17**, **n8n**, **Evolution API**, **Redis**, and **PostgreSQL**.
@@ -100,10 +108,26 @@ vm-autoescola-automations/
 ├── sql/
 │   └── active_leads_filter.sql    # Odoo 17 PostgreSQL query for active students
 ├── workflows/
-│   ├── holiday_notifications.json # n8n workflow for Google Calendar & WhatsApp alerts
-│   └── cnh_congratulations.json   # n8n workflow for CNH completion messages
+│   ├── practical_lesson_reminder.json  # Practical lesson reminder (day before)
+│   ├── medical_exam_reminder.json      # Medical exam reminder (day before)
+│   ├── psych_exam_reminder.json        # Psychological exam reminder (day before)
+│   ├── theory_exam_reminder.json       # Detran theory exam reminder (day before)
+│   ├── driving_test_reminder.json      # Detran driving test reminder (day before)
+│   ├── unexcused_absences_alert.json   # Unexcused absences alert
+│   ├── welcome_new_student.json        # Welcome message for new enrollments
+│   ├── holiday_notifications.json      # Google Calendar holiday alerts
+│   └── cnh_congratulations.json        # CNH (driver license) congratulations
 └── README.md                      # Project documentation and architecture overview
 ```
+
+---
+
+## ⚙️ How to Use
+
+1. **Workflows:** in n8n, go to *Workflows → Import from File* and select a `.json` from `workflows/`.
+2. **Credentials:** link your own *Postgres* credential (Odoo database) and, for the holiday workflow, your *Google Calendar* credential and calendar.
+3. **Evolution API:** replace `YOUR_EVOLUTION_API_KEY` in the HTTP Request nodes with your instance key (or use an n8n *Header Auth* credential), and adjust the instance name in the URL.
+4. **Backup:** copy `scripts/backup.sh` to `/opt/backup.sh`, set up an rclone remote named `gdrive`, and add the cron line shown in the script header.
 
 ---
 
